@@ -28,11 +28,14 @@ public class RoomBooking {
     public static final String WHITE = "\u001B[37m";
 
     public static void main(String[] args) {
-
-        //String date = datePicker();
-        //buildingChooser();
+        String date = datePicker();
+        String buildingId = buildingChooser();
         //roomChooser();
-        scrapeAvailability(loginRequest());
+
+        HttpCookie loginCookie = loginRequest();
+        if (loginCookie != null){
+            scrapeAvailability(loginCookie, buildingId, date);
+        }
     }
 
     public static String datePicker() {
@@ -58,10 +61,22 @@ public class RoomBooking {
 
         do {
             building = scanner.nextLine();
-        } while (!Objects.equals(building, "N") || !Objects.equals(building, "O") || !Objects.equals(building, "L"));
+        } while (!Objects.equals(building, "N") && !Objects.equals(building, "O") && !Objects.equals(building, "L"));
 
-
-        return null;
+        switch (building){
+            case "N" -> {
+                return "FLIK-0017";
+            }
+            case "O" -> {
+                return "FLIK_0000";
+            }
+            case "L" -> {
+                return "FLIK_0004";
+            }
+            default -> {
+                return null;
+            }
+       }
     }
 
     public static String roomChooser() {
@@ -77,15 +92,18 @@ public class RoomBooking {
         return null;
     }
 
-    public static void scrapeAvailability(HttpCookie httpCookie) {
+    public static void scrapeAvailability(HttpCookie httpCookie, String buildingId, String date) {
         try {
-            String URL = "https://schema.mau.se/ajax/ajax_resursbokning.jsp?op=hamtaBokningar&datum=23-09-24&flik=FLIK_0000";
+            String URL = "https://schema.mau.se/ajax/ajax_resursbokning.jsp?op=hamtaBokningar&datum=" + date + "&flik=" + buildingId;
+            System.out.println(URL);
             Document document = Jsoup.connect(URL)
                     .header("Cookie", httpCookie.toString())
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .get();
             int newline = 0;
             int roomRow = 2;
+
+            System.out.println(document);
 
             for (Element row : document.select("table.grupprum-table td.grupprum-kolumn")) {
                 if (row.toString().contains("grupprum-ledig") || row.toString().contains("grupprum-upptagen")) {
@@ -116,7 +134,9 @@ public class RoomBooking {
 
             }
         } catch (IOException e) {
+            System.out.println("scrapeAvailability Failed");
             throw new RuntimeException(e);
+
         }
 
     }
@@ -170,9 +190,12 @@ public class RoomBooking {
             // Define the POST data as a map of key-value pairs
             Map<String, String> postData = new HashMap<>();
 
-            Dotenv dotenv = Dotenv.load();
+            Dotenv dotenv = Dotenv.configure()
+                    .directory("src/main/resources")
+                    .filename(".env") // instead of '.env', use 'env'
+                    .load();
 
-            postData.put("username", dotenv.get("LOGIN-USER"));
+            postData.put("username", dotenv.get("LOGIN_USER"));
             postData.put("password", dotenv.get("PASSWORD"));
 
 
